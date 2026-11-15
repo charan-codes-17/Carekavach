@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.models import (
@@ -11,6 +11,13 @@ from app.models import (
     ReminderNotification,
 )
 from app.repositories.base import AlreadyExistsError, BaseRepository
+
+
+def _as_aware_utc(value: datetime) -> datetime:
+    """Normalise a datetime to timezone-aware UTC for reliable comparison."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class FirestoreRepository(BaseRepository):
@@ -272,14 +279,23 @@ class FirestoreRepository(BaseRepository):
     async def list_appointments(
         self, profile_id: str, upcoming_only: bool = False, now: datetime | None = None
     ) -> list[Appointment]:
+        """List appointments, filtering and sorting after deserialization.
+
+        ``appointment_datetime`` is written with ``model_dump(mode="json")``, so
+        Firestore stores it as an ISO-8601 string. A range query comparing that
+        string field against a ``datetime`` value never matches, which silently
+        returned zero results. Fetching the profile's documents and filtering in
+        Python avoids the type mismatch and needs no composite index.
+        """
         db = self._get_client()
         query = db.collection("profiles").document(profile_id).collection("appointments")
-        if upcoming_only and now is not None:
-            query = query.where("appointment_datetime", ">=", now)
         appts: list[Appointment] = []
         async for doc in query.stream():
             appts.append(Appointment(**doc.to_dict()))
-        return sorted(appts, key=lambda a: a.appointment_datetime)
+        if upcoming_only and now is not None:
+            reference = _as_aware_utc(now)
+            appts = [a for a in appts if _as_aware_utc(a.appointment_datetime) >= reference]
+        return sorted(appts, key=lambda a: _as_aware_utc(a.appointment_datetime))
 
     async def create_audit_entry(self, audit_entry: AuditEntry) -> AuditEntry:
         db = self._get_client()
