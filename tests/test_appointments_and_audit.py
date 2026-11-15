@@ -1,5 +1,5 @@
-from datetime import UTC, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import UTC, timedelta
+
 import pytest
 from httpx import AsyncClient
 
@@ -114,10 +114,10 @@ async def test_appointment_scheduling_and_past_rejection(
     appts = await memory_repo.list_appointments("default_profile")
     assert len(appts) == 1
     assert appts[0].doctor_name == "Dr. Mehta"
-    # Stored in UTC: 2026-11-20 10:30 IST is 05:00 UTC
+    # Stored in UTC: 2026-11-20 10:30 IST is 05:00 UTC (IST = UTC+5:30)
     assert appts[0].appointment_datetime.tzinfo == UTC
     assert appts[0].appointment_datetime.hour == 5
-    assert appts[0].appointment_datetime.minute == 30
+    assert appts[0].appointment_datetime.minute == 0
 
 
 @pytest.mark.asyncio
@@ -215,3 +215,154 @@ async def test_audit_log_role_gating_and_no_secrets(
     assert senior.passcode_hash not in res_sen.text
     assert caretaker.passcode_hash not in res_sen.text
 
+
+@pytest.mark.asyncio
+async def test_csrf_missing_rejected_on_appointment_create(
+    async_client: AsyncClient,
+    fixed_clock: FixedClock,
+    setup_appointment_members: tuple[Member, Member, Member],
+) -> None:
+    senior, _, _ = setup_appointment_members
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+
+    # Missing CSRF on appointment POST -> 403
+    res = await async_client.post(
+        "/appointments",
+        data={
+            "doctor_name": "Dr. Verma",
+            "specialty": "Dentist",
+            "location": "Smile Clinic",
+            "appointment_datetime": "2026-11-20T10:00",
+        },
+    )
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_appointment_stored_in_utc_and_displayed_in_ist(
+    async_client: AsyncClient,
+    memory_repo: MemoryRepository,
+    fixed_clock: FixedClock,
+    setup_appointment_members: tuple[Member, Member, Member],
+) -> None:
+    senior, _, _ = setup_appointment_members
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_token = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    # 15:30 IST on Nov 25, 2026
+    res = await async_client.post(
+        "/appointments",
+        data={
+            "csrf_token": csrf_token,
+            "doctor_name": "Dr. Roy",
+            "specialty": "Neurology",
+            "location": "Metro Hospital",
+            "appointment_datetime": "2026-11-25T15:30",
+        },
+    )
+    assert res.status_code == 303
+
+    appts = await memory_repo.list_appointments("default_profile")
+    roy_appts = [a for a in appts if a.doctor_name == "Dr. Roy"]
+    assert len(roy_appts) == 1
+    appt = roy_appts[0]
+
+    # Stored in UTC: 15:30 IST is 10:00 UTC
+    assert appt.appointment_datetime.tzinfo == UTC
+    assert appt.appointment_datetime.hour == 10
+    assert appt.appointment_datetime.minute == 0
+
+    # Displayed in IST on GET /appointments: 3:30 PM
+    res_get = await async_client.get("/appointments")
+    assert res_get.status_code == 200
+    assert "Wed, 25 Nov 2026 at 3:30 PM" in res_get.text
+
+
+@pytest.mark.asyncio
+async def test_audit_trail_captures_all_events_without_secrets(
+    async_client: AsyncClient,
+    memory_repo: MemoryRepository,
+    fixed_clock: FixedClock,
+    setup_appointment_members: tuple[Member, Member, Member],
+) -> None:
+    senior, _, _ = setup_appointment_members
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_token = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    # 1. Medication create
+    await async_client.post(
+        "/medications",
+        data={
+            "csrf_token": csrf_token,
+            "name": "Audit Test Pill",
+            "dosage": "20mg",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+        },
+    )
+    meds = await memory_repo.list_medications("default_profile")
+    med = [m for m in meds if m.name == "Audit Test Pill"][0]
+
+    # 2. Medication edit
+    await async_client.post(
+        f"/medications/{med.id}/edit",
+        data={
+            "csrf_token": csrf_token,
+            "name": "Audit Test Pill Extra",
+            "dosage": "30mg",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+        },
+    )
+
+    # 3. Dose log
+    await async_client.post(
+        "/doses/log",
+        data={
+            "csrf_token": csrf_token,
+            "medication_id": med.id,
+            "slot_time": "08:00",
+            "status": "TAKEN",
+        },
+    )
+
+    # 4. Medication deactivate
+    await async_client.post(
+        f"/medications/{med.id}/deactivate",
+        data={"csrf_token": csrf_token},
+    )
+
+    # 5. Appointment schedule
+    await async_client.post(
+        "/appointments",
+        data={
+            "csrf_token": csrf_token,
+            "doctor_name": "Dr. Audit",
+            "specialty": "General",
+            "location": "City Clinic",
+            "appointment_datetime": "2026-11-20T10:00",
+        },
+    )
+
+    entries = await memory_repo.list_audit_entries("default_profile")
+    actions = {e.action for e in entries}
+
+    assert "MEDICATION_CREATED" in actions
+    assert "MEDICATION_UPDATED" in actions
+    assert "MEDICATION_DEACTIVATED" in actions
+    assert "DOSE_LOGGED" in actions
+    assert "APPOINTMENT_CREATED" in actions
+
+    for entry in entries:
+        assert senior.passcode_hash not in str(entry.details)
+        assert senior.passcode_salt not in str(entry.details)
+        assert "pass123" not in str(entry.details)

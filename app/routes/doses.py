@@ -77,11 +77,19 @@ async def log_dose(
     medication_id: Annotated[str, Form()],
     slot_time: Annotated[str, Form()],
     status_str: Annotated[str, Form(alias="status")],
+    slot_date: Annotated[str | None, Form()] = None,
 ) -> Response:
     """Log a scheduled dose slot as TAKEN or SKIPPED. Prevents double-logging atomically."""
     tz = ZoneInfo(settings.DEFAULT_TIMEZONE)
     now = clock.now_utc()
     today_date_str = now.astimezone(tz).strftime("%Y-%m-%d")
+
+    # Reject non-today date if explicitly provided
+    if slot_date and slot_date.strip() != today_date_str:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Doses can only be logged for today ({today_date_str})",
+        )
 
     med = await repo.get_medication("default_profile", medication_id)
     if not med or not med.is_active:

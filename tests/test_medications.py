@@ -303,7 +303,7 @@ async def test_csrf_missing_rejected_on_medication_routes(
 
 
 @pytest.mark.asyncio
-async def test_revoked_member_rejected_on_medications(
+async def test_revoked_member_rejected_across_all_phase3_routes(
     async_client: AsyncClient,
     memory_repo: MemoryRepository,
     fixed_clock: FixedClock,
@@ -319,7 +319,176 @@ async def test_revoked_member_rejected_on_medications(
     caretaker.is_active = False
     await memory_repo.update_member(caretaker)
 
-    # Any request now redirects to /login
-    response = await async_client.get("/medications")
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login"
+    # All Phase 3 routes must reject revoked member and redirect to /login
+    for path in ("/medications", "/doses/today", "/appointments", "/audit"):
+        response = await async_client.get(path)
+        assert response.status_code == 303, f"Expected 303 redirect on {path}"
+        assert response.headers["location"] == "/login", f"Expected redirect to /login on {path}"
+
+
+@pytest.mark.asyncio
+async def test_family_can_edit_true_still_cannot_access_private_meds(
+    async_client: AsyncClient,
+    memory_repo: MemoryRepository,
+    fixed_clock: FixedClock,
+    setup_family_and_senior: tuple[Member, Member, Member],
+) -> None:
+    """FAMILY with can_edit=True can edit non-private meds, but STILL gets 404 on private meds."""
+    senior, _, family = setup_family_and_senior
+    settings = get_settings()
+
+    # Enable can_edit=True for family
+    family.can_edit = True
+    await memory_repo.update_member(family)
+
+    # Senior creates a private medication
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_senior = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    await async_client.post(
+        "/medications",
+        data={
+            "csrf_token": csrf_senior,
+            "name": "Classified Oncology Med",
+            "dosage": "5mg",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+            "is_private": "true",
+        },
+    )
+    meds = await memory_repo.list_medications("default_profile", active_only=True)
+    priv_med = [m for m in meds if m.name == "Classified Oncology Med"][0]
+    assert priv_med.is_private is True
+
+    # Log in as Family (with can_edit=True)
+    family_cookie = create_session_cookie(family.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, family_cookie)
+    csrf_fam = generate_csrf_token(family_cookie, settings.SESSION_SECRET)
+
+    # 1. Private med is not in GET /medications
+    res_list = await async_client.get("/medications")
+    assert res_list.status_code == 200
+    assert "Classified Oncology Med" not in res_list.text
+
+    # 2. Private med is not in GET /doses/today
+    res_today = await async_client.get("/doses/today")
+    assert res_today.status_code == 200
+    assert "Classified Oncology Med" not in res_today.text
+
+    # 3. GET edit form returns 404
+    res_edit_get = await async_client.get(f"/medications/{priv_med.id}/edit")
+    assert res_edit_get.status_code == 404
+
+    # 4. POST edit returns 404
+    res_edit_post = await async_client.post(
+        f"/medications/{priv_med.id}/edit",
+        data={
+            "csrf_token": csrf_fam,
+            "name": "Classified Oncology Med Hacked",
+            "dosage": "5mg",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+        },
+    )
+    assert res_edit_post.status_code == 404
+
+    # 5. POST deactivate returns 404
+    res_deact = await async_client.post(
+        f"/medications/{priv_med.id}/deactivate",
+        data={"csrf_token": csrf_fam},
+    )
+    assert res_deact.status_code == 404
+
+    # 6. POST dose log for private med returns 404
+    res_dose = await async_client.post(
+        "/doses/log",
+        data={
+            "csrf_token": csrf_fam,
+            "medication_id": priv_med.id,
+            "slot_time": "08:00",
+            "status": "TAKEN",
+        },
+    )
+    assert res_dose.status_code == 404
+
+    # 7. BUT Family can mutate non-private items because can_edit=True
+    res_create_non_priv = await async_client.post(
+        "/medications",
+        data={
+            "csrf_token": csrf_fam,
+            "name": "Standard Calcium",
+            "dosage": "500mg",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+        },
+    )
+    assert res_create_non_priv.status_code == 303
+
+
+@pytest.mark.asyncio
+async def test_only_senior_can_change_is_private_caretaker_cannot_toggle_either_way(
+    async_client: AsyncClient,
+    memory_repo: MemoryRepository,
+    fixed_clock: FixedClock,
+    setup_family_and_senior: tuple[Member, Member, Member],
+) -> None:
+    senior, caretaker, _ = setup_family_and_senior
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_senior = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    # 1. Senior creates non-private medication
+    await async_client.post(
+        "/medications",
+        data={
+            "csrf_token": csrf_senior,
+            "name": "Daily Multi",
+            "dosage": "1 pill",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+            "is_private": "false",
+        },
+    )
+    meds = await memory_repo.list_medications("default_profile", active_only=True)
+    med = [m for m in meds if m.name == "Daily Multi"][0]
+    assert med.is_private is False
+
+    # 2. Caretaker attempts to mark it as private -> stays False
+    caretaker_cookie = create_session_cookie(caretaker.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, caretaker_cookie)
+    csrf_caretaker = generate_csrf_token(caretaker_cookie, settings.SESSION_SECRET)
+
+    await async_client.post(
+        f"/medications/{med.id}/edit",
+        data={
+            "csrf_token": csrf_caretaker,
+            "name": "Daily Multi",
+            "dosage": "1 pill",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+            "is_private": "true",
+        },
+    )
+    med_after = await memory_repo.get_medication("default_profile", med.id)
+    assert med_after is not None
+    assert med_after.is_private is False  # Still False!
+
+    # 3. Senior edits it and marks it private -> becomes True
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    await async_client.post(
+        f"/medications/{med.id}/edit",
+        data={
+            "csrf_token": csrf_senior,
+            "name": "Daily Multi",
+            "dosage": "1 pill",
+            "frequency": "Daily",
+            "scheduled_times": "08:00",
+            "is_private": "true",
+        },
+    )
+    med_after_senior = await memory_repo.get_medication("default_profile", med.id)
+    assert med_after_senior is not None
+    assert med_after_senior.is_private is True  # Changed to True!

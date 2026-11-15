@@ -1,9 +1,9 @@
-from datetime import UTC, datetime
 import secrets
+from datetime import UTC, datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
@@ -50,13 +50,14 @@ async def list_appointments(
     display_appts = []
     for a in upcoming:
         local_dt = a.appointment_datetime.astimezone(tz)
+        formatted_dt = local_dt.strftime("%a, %d %b %Y at %I:%M %p").replace(" 0", " ")
         display_appts.append(
             {
                 "id": a.id,
                 "doctor_name": a.doctor_name,
                 "specialty": a.specialty,
                 "location": a.location,
-                "formatted_datetime": local_dt.strftime("%a, %d %b %Y at %I:%M %p").replace(" 0", " "),
+                "formatted_datetime": formatted_dt,
                 "notes": a.notes,
                 "created_by": a.created_by,
             }

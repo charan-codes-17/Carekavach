@@ -49,7 +49,10 @@ def parse_and_validate_times(raw_times_str: str) -> tuple[list[str] | None, str 
                 token = f"0{h}:{m}"
 
         if not TIME_24H_REGEX.match(token):
-            return None, f"Invalid time format '{token}'. Use 24-hour HH:MM format (e.g. 08:00, 20:00)."
+            err_msg = (
+                f"Invalid time format '{token}'. Use 24-hour HH:MM format (e.g. 08:00, 20:00)."
+            )
+            return None, err_msg
         cleaned_set.add(token)
 
     if len(cleaned_set) > 8:
@@ -140,6 +143,14 @@ async def create_medication(
     clean_frequency = frequency.strip()
     clean_instructions = instructions.strip() if instructions else ""
 
+    form_data = {
+        "name": clean_name,
+        "dosage": clean_dosage,
+        "frequency": clean_frequency,
+        "scheduled_times": scheduled_times,
+        "instructions": clean_instructions,
+    }
+
     if not clean_name or len(clean_name) > 80:
         return templates.TemplateResponse(
             request=request,
@@ -148,6 +159,7 @@ async def create_medication(
                 "request": request,
                 "current_member": current_member,
                 "csrf_token": csrf_token,
+                "form_data": form_data,
                 "error": "Medication name is required (maximum 80 characters).",
                 "is_senior": current_member.role == MemberRole.SENIOR,
             },
@@ -162,6 +174,7 @@ async def create_medication(
                 "request": request,
                 "current_member": current_member,
                 "csrf_token": csrf_token,
+                "form_data": form_data,
                 "error": "Dosage is required (maximum 50 characters).",
                 "is_senior": current_member.role == MemberRole.SENIOR,
             },
@@ -177,6 +190,7 @@ async def create_medication(
                 "request": request,
                 "current_member": current_member,
                 "csrf_token": csrf_token,
+                "form_data": form_data,
                 "error": time_err or "Invalid times.",
                 "is_senior": current_member.role == MemberRole.SENIOR,
             },
@@ -229,7 +243,7 @@ async def create_medication(
 async def edit_medication_form(
     med_id: str,
     request: Request,
-    current_member: Annotated[Member, Depends(require_editor)],
+    current_member: Annotated[Member, Depends(get_current_member)],
     repo: Annotated[BaseRepository, Depends(get_repository)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> HTMLResponse:
@@ -241,6 +255,10 @@ async def edit_medication_form(
     # Privacy check: FAMILY returns 404
     if current_member.role == MemberRole.FAMILY and med.is_private:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
+
+    # Permission check: Editor required
+    if not (current_member.role == MemberRole.SENIOR or current_member.can_edit):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Editor access required")
 
     session_cookie = request.cookies.get(SESSION_COOKIE_NAME, "")
     csrf_token = generate_csrf_token(session_cookie, settings.SESSION_SECRET)
@@ -263,7 +281,7 @@ async def edit_medication_form(
 async def update_medication(
     med_id: str,
     request: Request,
-    current_member: Annotated[Member, Depends(require_editor)],
+    current_member: Annotated[Member, Depends(get_current_member)],
     repo: Annotated[BaseRepository, Depends(get_repository)],
     clock: Annotated[Clock, Depends(get_clock)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -283,6 +301,10 @@ async def update_medication(
     if current_member.role == MemberRole.FAMILY and med.is_private:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
 
+    # Permission check: Editor required
+    if not (current_member.role == MemberRole.SENIOR or current_member.can_edit):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Editor access required")
+
     session_cookie = request.cookies.get(SESSION_COOKIE_NAME, "")
     csrf_token = generate_csrf_token(session_cookie, settings.SESSION_SECRET)
 
@@ -290,6 +312,14 @@ async def update_medication(
     clean_dosage = dosage.strip()
     clean_frequency = frequency.strip()
     clean_instructions = instructions.strip() if instructions else ""
+
+    form_data = {
+        "name": clean_name,
+        "dosage": clean_dosage,
+        "frequency": clean_frequency,
+        "scheduled_times": scheduled_times,
+        "instructions": clean_instructions,
+    }
 
     if not clean_name or len(clean_name) > 80:
         return templates.TemplateResponse(
@@ -300,6 +330,7 @@ async def update_medication(
                 "current_member": current_member,
                 "csrf_token": csrf_token,
                 "medication": med,
+                "form_data": form_data,
                 "error": "Medication name is required (maximum 80 characters).",
                 "is_senior": current_member.role == MemberRole.SENIOR,
             },
@@ -315,6 +346,7 @@ async def update_medication(
                 "current_member": current_member,
                 "csrf_token": csrf_token,
                 "medication": med,
+                "form_data": form_data,
                 "error": "Dosage is required (maximum 50 characters).",
                 "is_senior": current_member.role == MemberRole.SENIOR,
             },
@@ -331,6 +363,7 @@ async def update_medication(
                 "current_member": current_member,
                 "csrf_token": csrf_token,
                 "medication": med,
+                "form_data": form_data,
                 "error": time_err or "Invalid times.",
                 "is_senior": current_member.role == MemberRole.SENIOR,
             },

@@ -16,19 +16,50 @@ from app.repositories.base import AlreadyExistsError, BaseRepository
 class FirestoreRepository(BaseRepository):
     """Production Firestore repository with lazy client initialization."""
 
-    def __init__(self, project_id: str = "") -> None:
+    def __init__(self, project_id: str = "", credentials_json: str = "") -> None:
         self._project_id = project_id
+        self._credentials_json = credentials_json
         self._client: Any = None
 
     def _get_client(self) -> Any:
         if self._client is None:
             # Lazy import so tests and local runs without GCP credentials don't fail at import
+            import json
+
             from google.cloud import firestore
 
-            if self._project_id:
-                self._client = firestore.AsyncClient(project=self._project_id)
+            if self._credentials_json and self._credentials_json.strip():
+                try:
+                    cred_info = json.loads(self._credentials_json)
+                except Exception:
+                    raise ValueError(
+                        "Failed to parse FIREBASE_CREDENTIALS_JSON as valid JSON"
+                    ) from None
+
+                if not isinstance(cred_info, dict):
+                    raise ValueError("FIREBASE_CREDENTIALS_JSON must be a JSON object")
+
+                from google.oauth2 import service_account
+
+                try:
+                    credentials = service_account.Credentials.from_service_account_info(cred_info)
+                except Exception:
+                    raise ValueError(
+                        "Failed to construct credentials from FIREBASE_CREDENTIALS_JSON"
+                    ) from None
+
+                project_id = cred_info.get("project_id") or self._project_id
+                if project_id:
+                    self._client = firestore.AsyncClient(
+                        project=project_id, credentials=credentials
+                    )
+                else:
+                    self._client = firestore.AsyncClient(credentials=credentials)
             else:
-                self._client = firestore.AsyncClient()
+                if self._project_id:
+                    self._client = firestore.AsyncClient(project=self._project_id)
+                else:
+                    self._client = firestore.AsyncClient()
         return self._client
 
     async def get_profile(self, profile_id: str) -> Profile | None:

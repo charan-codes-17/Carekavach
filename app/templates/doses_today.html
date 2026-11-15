@@ -55,6 +55,7 @@
             <form method="post" action="/doses/log">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="medication_id" value="{{ s.medication_id }}">
+              <input type="hidden" name="slot_date" value="{{ today_date }}">
               <input type="hidden" name="slot_time" value="{{ s.scheduled_time }}">
               <input type="hidden" name="status" value="TAKEN">
               <button type="submit" class="btn-primary" style="background-color: var(--color-success); border-color: var(--color-success); min-height: 52px; padding: 0 var(--spacing-xl);">
@@ -65,6 +66,7 @@
             <form method="post" action="/doses/log">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="medication_id" value="{{ s.medication_id }}">
+              <input type="hidden" name="slot_date" value="{{ today_date }}">
               <input type="hidden" name="slot_time" value="{{ s.scheduled_time }}">
               <input type="hidden" name="status" value="SKIPPED">
               <button type="submit" style="background-color: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text); min-height: 52px;">

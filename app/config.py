@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Google Cloud & Storage
     GOOGLE_CLOUD_PROJECT: str = ""
+    FIREBASE_CREDENTIALS_JSON: str = ""
     USE_FIRESTORE: bool = False
 
     # AI & Services

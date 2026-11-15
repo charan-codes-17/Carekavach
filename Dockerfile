@@ -18,7 +18,10 @@ COPY app/ app/
 RUN useradd -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# $PORT is injected at runtime by Render / Cloud Run
 EXPOSE 8080
 
-# Cloud Run injects $PORT dynamically at container runtime
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+# --proxy-headers: trust X-Forwarded-For / X-Forwarded-Proto from Render's proxy
+# --forwarded-allow-ips="*": accept forwarded headers from any upstream (Render LB)
+# --workers 1: single process suits Render free-tier (512 MB RAM)
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --workers 1"]

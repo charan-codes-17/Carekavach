@@ -302,3 +302,149 @@ async def test_dose_log_missing_csrf_rejected(
         },
     )
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_dose_log_non_today_date_rejected(
+    async_client: AsyncClient,
+    fixed_clock: FixedClock,
+    setup_dose_environment: tuple[Member, Medication],
+) -> None:
+    senior, med = setup_dose_environment
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_token = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    # 1. Yesterday rejected
+    res_past = await async_client.post(
+        "/doses/log",
+        data={
+            "csrf_token": csrf_token,
+            "medication_id": med.id,
+            "slot_date": "2026-11-14",
+            "slot_time": "08:00",
+            "status": "TAKEN",
+        },
+    )
+    assert res_past.status_code == 400
+    assert "only be logged for today" in res_past.text
+
+    # 2. Tomorrow rejected
+    res_future = await async_client.post(
+        "/doses/log",
+        data={
+            "csrf_token": csrf_token,
+            "medication_id": med.id,
+            "slot_date": "2026-11-16",
+            "slot_time": "08:00",
+            "status": "TAKEN",
+        },
+    )
+    assert res_future.status_code == 400
+    assert "only be logged for today" in res_future.text
+
+    # 3. Today succeeds
+    res_today = await async_client.post(
+        "/doses/log",
+        data={
+            "csrf_token": csrf_token,
+            "medication_id": med.id,
+            "slot_date": "2026-11-15",
+            "slot_time": "08:00",
+            "status": "TAKEN",
+        },
+    )
+    assert res_today.status_code == 303
+
+
+@pytest.mark.asyncio
+async def test_private_medication_doses_hidden_from_family_on_doses_today(
+    async_client: AsyncClient,
+    memory_repo: MemoryRepository,
+    fixed_clock: FixedClock,
+) -> None:
+    settings = get_settings()
+    now = fixed_clock.now_utc()
+
+    # Create Senior and Family member
+    profile = Profile(
+        id="default_profile",
+        senior_name="Grandpa Ramesh",
+        timezone="Asia/Kolkata",
+        created_at=now,
+    )
+    await memory_repo.create_profile(profile)
+
+    salt1, hash1 = hash_passcode("pass123")
+    senior = Member(
+        id="senior_dose_priv",
+        profile_id="default_profile",
+        name="Ramesh",
+        role=MemberRole.SENIOR,
+        can_edit=True,
+        passcode_salt=salt1,
+        passcode_hash=hash1,
+        created_at=now,
+    )
+    await memory_repo.create_member(senior)
+
+    salt2, hash2 = hash_passcode("pass123")
+    family = Member(
+        id="family_dose_priv",
+        profile_id="default_profile",
+        name="Asha",
+        role=MemberRole.FAMILY,
+        can_edit=False,
+        passcode_salt=salt2,
+        passcode_hash=hash2,
+        created_at=now,
+    )
+    await memory_repo.create_member(family)
+
+    # 1 Public med + 1 Private med
+    public_med = Medication(
+        id="med_pub_1",
+        profile_id="default_profile",
+        name="Public Vitamin D",
+        dosage="1000IU",
+        frequency="Daily",
+        scheduled_times=["08:00"],
+        is_private=False,
+        is_active=True,
+        created_by="Ramesh",
+        created_at=now,
+        updated_at=now,
+    )
+    private_med = Medication(
+        id="med_priv_1",
+        profile_id="default_profile",
+        name="Private Cardiac Drug",
+        dosage="50mg",
+        frequency="Daily",
+        scheduled_times=["08:00"],
+        is_private=True,
+        is_active=True,
+        created_by="Ramesh",
+        created_at=now,
+        updated_at=now,
+    )
+    await memory_repo.create_medication(public_med)
+    await memory_repo.create_medication(private_med)
+
+    # Senior view has both
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    res_sen = await async_client.get("/doses/today")
+    assert res_sen.status_code == 200
+    assert "Public Vitamin D" in res_sen.text
+    assert "Private Cardiac Drug" in res_sen.text
+
+    # Family view has ONLY public med
+    family_cookie = create_session_cookie(family.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, family_cookie)
+    res_fam = await async_client.get("/doses/today")
+    assert res_fam.status_code == 200
+    assert "Public Vitamin D" in res_fam.text
+    assert "Private Cardiac Drug" not in res_fam.text

@@ -31,7 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manage application startup and repository lifecycle."""
     settings = get_settings()
     if settings.USE_FIRESTORE:
-        app.state.repository = FirestoreRepository(project_id=settings.GOOGLE_CLOUD_PROJECT)
+        app.state.repository = FirestoreRepository(
+            project_id=settings.GOOGLE_CLOUD_PROJECT,
+            credentials_json=settings.FIREBASE_CREDENTIALS_JSON,
+        )
     else:
         app.state.repository = MemoryRepository()
 

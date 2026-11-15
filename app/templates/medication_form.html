@@ -24,7 +24,7 @@
         name="name"
         required
         maxlength="80"
-        value="{{ (medication.name if medication else '') or request.form.get('name', '') }}"
+        value="{{ form_data.name if (form_data is defined and form_data.name is defined) else (medication.name if medication else '') }}"
         placeholder="e.g. Metformin"
       >
     </div>
@@ -37,7 +37,7 @@
         name="dosage"
         required
         maxlength="50"
-        value="{{ (medication.dosage if medication else '') or request.form.get('dosage', '') }}"
+        value="{{ form_data.dosage if (form_data is defined and form_data.dosage is defined) else (medication.dosage if medication else '') }}"
         placeholder="e.g. 500mg or 1 tablet"
       >
     </div>
@@ -50,7 +50,7 @@
         name="frequency"
         required
         maxlength="50"
-        value="{{ (medication.frequency if medication else 'Daily') or request.form.get('frequency', '') }}"
+        value="{{ form_data.frequency if (form_data is defined and form_data.frequency is defined) else (medication.frequency if medication else 'Daily') }}"
         placeholder="e.g. Twice daily, Once daily"
       >
     </div>
@@ -62,7 +62,7 @@
         id="scheduled_times"
         name="scheduled_times"
         required
-        value="{{ times_str if times_str is defined else (medication.scheduled_times|join(', ') if medication else '08:00, 20:00') }}"
+        value="{{ form_data.scheduled_times if (form_data is defined and form_data.scheduled_times is defined) else (medication.scheduled_times|join(', ') if medication else '08:00, 20:00') }}"
         placeholder="e.g. 08:00, 20:00 (up to 8 times)"
       >
       <small style="color: var(--color-text-muted); display: block; margin-top: 4px;">
@@ -78,7 +78,7 @@
         rows="2"
         maxlength="200"
         placeholder="e.g. Take with a glass of water after breakfast"
-      >{{ (medication.instructions if medication else '') or request.form.get('instructions', '') }}</textarea>
+      >{{ form_data.instructions if (form_data is defined and form_data.instructions is defined) else (medication.instructions if medication else '') }}</textarea>
     </div>
 
     {% if is_senior %}
