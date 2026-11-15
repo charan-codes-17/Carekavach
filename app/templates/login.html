@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - CareKavach{% endblock %}
+
+{% block content %}
+<section aria-labelledby="login-heading" style="max-width: 500px; margin: 0 auto;">
+  <h2 id="login-heading">Member Sign In</h2>
+  <p>Enter your profile name and personal passcode to access your care dashboard.</p>
+
+  {% if info_message %}
+  <div role="status" class="status-banner status-success">
+    {{ info_message }}
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div role="alert" class="status-banner status-error">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/login" novalidate>
+    <div class="form-group">
+      <label for="name">Member Name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        required
+        autocomplete="username"
+        value="{{ name or '' }}"
+        placeholder="e.g. Ramesh Sharma"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="passcode">Personal Passcode</label>
+      <input
+        type="password"
+        id="passcode"
+        name="passcode"
+        required
+        autocomplete="current-password"
+        placeholder="Enter your passcode"
+      >
+    </div>
+
+    <button type="submit" class="btn-primary btn-large" style="width: 100%;">
+      Sign In
+    </button>
+  </form>
+</section>
+{% endblock %}

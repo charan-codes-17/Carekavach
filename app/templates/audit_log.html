@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail - CareKavach{% endblock %}
+
+{% block content %}
+<section aria-labelledby="audit-heading">
+  <h2>System Audit Trail</h2>
+  <p>Immutable activity log of all healthcare scheduling, dose events, and member modifications.</p>
+
+  {% if audit_entries %}
+  <table style="width: 100%; border-collapse: collapse; margin-top: var(--spacing-lg);">
+    <thead>
+      <tr style="border-bottom: 2px solid var(--color-border); text-align: left;">
+        <th style="padding: var(--spacing-md);">Date &amp; Time</th>
+        <th style="padding: var(--spacing-md);">Action</th>
+        <th style="padding: var(--spacing-md);">Actor</th>
+        <th style="padding: var(--spacing-md);">Event Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in audit_entries %}
+      <tr style="border-bottom: 1px solid var(--color-border);">
+        <td style="padding: var(--spacing-md); font-weight: 700; white-space: nowrap;">{{ entry.formatted_time }}</td>
+        <td style="padding: var(--spacing-md); font-weight: 700; color: var(--color-primary);">{{ entry.action }}</td>
+        <td style="padding: var(--spacing-md);">{{ entry.actor_name }}</td>
+        <td style="padding: var(--spacing-md); font-size: 0.95rem; color: var(--color-text-muted);">
+          {% for k, v in entry.details.items() %}
+          <span style="display: inline-block; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; margin: 2px;">
+            <strong>{{ k }}</strong>: {{ v }}
+          </span>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="status-banner status-info" style="margin-top: var(--spacing-lg);">
+    <p>No audit events recorded yet.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

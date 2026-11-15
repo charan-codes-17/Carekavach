@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Today's Medication Schedule - CareKavach{% endblock %}
+
+{% block content %}
+<section aria-labelledby="today-heading">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md);">
+    <h2 id="today-heading" style="margin: 0;">Today's Medication Timeline</h2>
+    <span style="font-weight: 700; color: var(--color-primary); background: #e0f2fe; padding: 6px 14px; border-radius: 6px;">
+      Date: {{ today_date }}
+    </span>
+  </div>
+
+  <p>Track daily doses and confirm taken medications. Every action is recorded for peace of mind.</p>
+
+  {% if success %}
+  <div role="status" class="status-banner status-success">
+    {{ success }}
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div role="alert" class="status-banner status-error">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if slots %}
+  <div style="display: grid; gap: var(--spacing-lg); margin-top: var(--spacing-lg);">
+    {% for s in slots %}
+    <article style="background: var(--color-surface); border: 2px solid {% if s.status == 'TAKEN' %}var(--color-success){% elif s.status == 'MISSED' %}var(--color-danger){% elif s.status == 'SKIPPED' %}var(--color-warning){% else %}var(--color-border){% endif %}; border-radius: 8px; padding: var(--spacing-lg);" aria-labelledby="slot-{{ s.slot_id }}">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-md);">
+        <div>
+          <span style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">
+            {{ s.scheduled_time }}
+          </span>
+          <h3 id="slot-{{ s.slot_id }}" style="margin: 4px 0 var(--spacing-xs) 0; font-size: var(--font-size-h2);">
+            {{ s.medication_name }} ({{ s.dosage }})
+            {% if s.is_private %}
+            <span style="font-size: 0.875rem; background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: 700; border: 1px solid #f87171; margin-left: 8px;">
+              [Private]
+            </span>
+            {% endif %}
+          </h3>
+
+          <!-- Accessible Text Status Indicator (Never Color Alone) -->
+          <p style="margin: var(--spacing-xs) 0 0 0; font-size: 1.125rem; font-weight: 700; color: {% if s.status == 'TAKEN' %}var(--color-success){% elif s.status == 'MISSED' %}var(--color-danger){% elif s.status == 'SKIPPED' %}var(--color-warning){% else %}var(--color-text-muted){% endif %};">
+            Status: {{ s.status_text }}
+          </p>
+        </div>
+
+        {% if current_member.can_edit or current_member.role.value == 'senior' %}
+          {% if s.status in ['PENDING', 'MISSED'] %}
+          <div style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap;">
+            <form method="post" action="/doses/log">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="medication_id" value="{{ s.medication_id }}">
+              <input type="hidden" name="slot_time" value="{{ s.scheduled_time }}">
+              <input type="hidden" name="status" value="TAKEN">
+              <button type="submit" class="btn-primary" style="background-color: var(--color-success); border-color: var(--color-success); min-height: 52px; padding: 0 var(--spacing-xl);">
+                &#10003; Mark Taken
+              </button>
+            </form>
+
+            <form method="post" action="/doses/log">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="medication_id" value="{{ s.medication_id }}">
+              <input type="hidden" name="slot_time" value="{{ s.scheduled_time }}">
+              <input type="hidden" name="status" value="SKIPPED">
+              <button type="submit" style="background-color: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text); min-height: 52px;">
+                Skip Dose
+              </button>
+            </form>
+          </div>
+          {% else %}
+          <div style="padding: var(--spacing-sm) var(--spacing-md); background: #f8fafc; border-radius: 6px; border: 1px solid var(--color-border); font-weight: 700;">
+            Logged by {{ s.logged_by_name or 'Care Team' }}
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="status-banner status-info" style="margin-top: var(--spacing-lg);">
+    <p>No medication doses are scheduled for today.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

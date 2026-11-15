@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{% if medication %}Edit {{ medication.name }}{% else %}Add New Medication{% endif %} - CareKavach{% endblock %}
+
+{% block content %}
+<section aria-labelledby="form-heading" style="max-width: 650px; margin: 0 auto;">
+  <h2 id="form-heading">{% if medication %}Edit Medication Schedule{% else %}Add Daily Medication{% endif %}</h2>
+  <p>Configure dosing routine logistics. CareKavach only tracks scheduling.</p>
+
+  {% if error %}
+  <div role="alert" class="status-banner status-error">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% if medication %}/medications/{{ medication.id }}/edit{% else %}/medications{% endif %}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="form-group">
+      <label for="name">Medication Name <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        required
+        maxlength="80"
+        value="{{ (medication.name if medication else '') or request.form.get('name', '') }}"
+        placeholder="e.g. Metformin"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="dosage">Dosage <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="dosage"
+        name="dosage"
+        required
+        maxlength="50"
+        value="{{ (medication.dosage if medication else '') or request.form.get('dosage', '') }}"
+        placeholder="e.g. 500mg or 1 tablet"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="frequency">Frequency <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="frequency"
+        name="frequency"
+        required
+        maxlength="50"
+        value="{{ (medication.frequency if medication else 'Daily') or request.form.get('frequency', '') }}"
+        placeholder="e.g. Twice daily, Once daily"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="scheduled_times">Scheduled Times (24-Hour HH:MM) <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="scheduled_times"
+        name="scheduled_times"
+        required
+        value="{{ times_str if times_str is defined else (medication.scheduled_times|join(', ') if medication else '08:00, 20:00') }}"
+        placeholder="e.g. 08:00, 20:00 (up to 8 times)"
+      >
+      <small style="color: var(--color-text-muted); display: block; margin-top: 4px;">
+        Enter times in 24-hour HH:MM format separated by commas (e.g. 08:00, 14:00, 20:00).
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label for="instructions">Instructions (Optional)</label>
+      <textarea
+        id="instructions"
+        name="instructions"
+        rows="2"
+        maxlength="200"
+        placeholder="e.g. Take with a glass of water after breakfast"
+      >{{ (medication.instructions if medication else '') or request.form.get('instructions', '') }}</textarea>
+    </div>
+
+    {% if is_senior %}
+    <div class="form-group" style="background: #f1f5f9; padding: var(--spacing-md); border-radius: 6px;">
+      <div style="display: flex; align-items: flex-start; gap: var(--spacing-sm);">
+        <input
+          type="checkbox"
+          id="is_private"
+          name="is_private"
+          value="true"
+          {% if medication and medication.is_private %}checked{% endif %}
+          style="width: 24px; min-height: 24px; margin-top: 2px;"
+        >
+        <div>
+          <label for="is_private" style="margin-bottom: 2px;">Mark as Private Medication</label>
+          <small style="color: var(--color-text-muted); display: block;">
+            Private medications are only visible to you and your authorized Caretakers. Family members will never see private medication schedules or receive alerts about them.
+          </small>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; gap: var(--spacing-md); align-items: center; margin-top: var(--spacing-lg);">
+      <button type="submit" class="btn-primary btn-large">
+        {% if medication %}Save Changes{% else %}Add Medication{% endif %}
+      </button>
+      <a href="/medications" class="button" style="background: none; border: 2px solid var(--color-border); color: var(--color-text);">
+        Cancel
+      </a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+

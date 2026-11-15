@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Members - CareKavach{% endblock %}
+
+{% block nav %}
+<span>Signed in as <strong>{{ current_member.name }}</strong> ({{ current_member.role|title }})</span>
+<a href="/">Dashboard</a>
+<form method="post" action="/logout" style="display: inline;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit" style="background: none; border: none; color: var(--color-primary); text-decoration: underline; font-weight: 700; cursor: pointer; padding: 0 var(--spacing-md); min-height: var(--touch-target-min);">
+    Sign Out
+  </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<section aria-labelledby="members-heading">
+  <h2 id="members-heading">Authorized Care Ecosystem Members</h2>
+  <p>Overview of all family members and caretakers authorized to view or manage this profile.</p>
+
+  {% if success %}
+  <div role="status" class="status-banner status-success">
+    {{ success }}
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div role="alert" class="status-banner status-error">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <table style="width: 100%; border-collapse: collapse; margin-top: var(--spacing-lg);">
+    <thead>
+      <tr style="border-bottom: 2px solid var(--color-border); text-align: left;">
+        <th style="padding: var(--spacing-md);">Name</th>
+        <th style="padding: var(--spacing-md);">Role</th>
+        <th style="padding: var(--spacing-md);">Permissions</th>
+        <th style="padding: var(--spacing-md);">Status</th>
+        {% if is_senior %}
+        <th style="padding: var(--spacing-md);">Email</th>
+        <th style="padding: var(--spacing-md);">Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in members %}
+      <tr style="border-bottom: 1px solid var(--color-border);">
+        <td style="padding: var(--spacing-md); font-weight: 700;">{{ m.name }}</td>
+        <td style="padding: var(--spacing-md);">{{ m.role|title }}</td>
+        <td style="padding: var(--spacing-md);">
+          {% if m.can_edit %}
+          <span style="color: var(--color-success); font-weight: 700;">Can Edit</span>
+          {% else %}
+          <span style="color: var(--color-text-muted);">Read Only</span>
+          {% endif %}
+        </td>
+        <td style="padding: var(--spacing-md);">
+          {% if m.is_active %}
+          <span style="color: var(--color-success); font-weight: 700;">Active</span>
+          {% else %}
+          <span style="color: var(--color-danger); font-weight: 700;">Revoked</span>
+          {% endif %}
+        </td>
+        {% if is_senior %}
+        <td style="padding: var(--spacing-md);">{{ m.email or '—' }}</td>
+        <td style="padding: var(--spacing-md); display: flex; gap: var(--spacing-xs); flex-wrap: wrap;">
+          {% if m.id != current_member.id and m.is_active %}
+          <form method="post" action="/members/{{ m.id }}/can-edit" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" style="background-color: var(--color-surface); border: 2px solid var(--color-primary); color: var(--color-primary);">
+              {% if m.can_edit %}Make Read-Only{% else %}Grant Edit{% endif %}
+            </button>
+          </form>
+          <form method="post" action="/members/{{ m.id }}/revoke" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" style="background-color: var(--color-surface); border: 2px solid var(--color-danger); color: var(--color-danger);">
+              Revoke
+            </button>
+          </form>
+          {% elif m.id == current_member.id %}
+          <span style="color: var(--color-text-muted); padding: var(--spacing-sm);">(You)</span>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if is_senior %}
+  <section aria-labelledby="invite-heading" style="margin-top: var(--spacing-xl); background: var(--color-surface); padding: var(--spacing-lg); border-radius: 8px; border: 1px solid var(--color-border);">
+    <h3 id="invite-heading">Invite a New Member</h3>
+    <form method="post" action="/members/invite" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <div class="form-group">
+        <label for="name">Member Name <span aria-hidden="true">*</span></label>
+        <input type="text" id="name" name="name" required maxlength="60" placeholder="e.g. Pooja Sharma">
+      </div>
+
+      <div class="form-group">
+        <label for="role">Role <span aria-hidden="true">*</span></label>
+        <select id="role" name="role" required>
+          <option value="caretaker">Caretaker (Daily Assistance)</option>
+          <option value="family">Family (Adherence Visibility)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="passcode">Member Passcode <span aria-hidden="true">* (Minimum 6 characters)</span></label>
+        <input type="password" id="passcode" name="passcode" required minlength="6" placeholder="Choose member passcode">
+      </div>
+
+      <div class="form-group">
+        <label for="email">Notification Email (Optional)</label>
+        <input type="email" id="email" name="email" placeholder="member@example.com">
+      </div>
+
+      <div class="form-group" style="display: flex; align-items: center; gap: var(--spacing-sm);">
+        <input type="checkbox" id="can_edit" name="can_edit" value="true" checked style="width: 24px; min-height: 24px;">
+        <label for="can_edit" style="margin-bottom: 0;">Allow this member to edit medications and schedule</label>
+      </div>
+
+      <button type="submit" class="btn-primary btn-large">
+        Send Member Invitation
+      </button>
+    </form>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

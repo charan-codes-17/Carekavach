@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Medications - CareKavach{% endblock %}
+
+{% block content %}
+<section aria-labelledby="medications-heading">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md);">
+    <h2 id="medications-heading" style="margin: 0;">Daily Medication Schedules</h2>
+    {% if current_member.can_edit or current_member.role.value == 'senior' %}
+    <a href="/medications/new" class="btn-primary" style="display: inline-flex; align-items: center; min-height: var(--touch-target-min);">
+      + Add Medication
+    </a>
+    {% endif %}
+  </div>
+
+  <p>Overview of active prescription routines and daily dosing times.</p>
+
+  {% if success %}
+  <div role="status" class="status-banner status-success">
+    {{ success }}
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div role="alert" class="status-banner status-error">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if medications %}
+  <div style="display: grid; gap: var(--spacing-lg); margin-top: var(--spacing-lg);">
+    {% for med in medications %}
+    <article style="background: var(--color-surface); border: 2px solid var(--color-border); border-radius: 8px; padding: var(--spacing-lg);" aria-labelledby="med-{{ med.id }}">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-sm);">
+        <div>
+          <h3 id="med-{{ med.id }}" style="margin: 0 0 var(--spacing-xs) 0; font-size: var(--font-size-h2);">
+            {{ med.name }}
+            {% if med.is_private %}
+            <span style="font-size: 0.875rem; background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: 700; border: 1px solid #f87171; margin-left: 8px;">
+              [Private - Hidden from Family]
+            </span>
+            {% endif %}
+          </h3>
+          <p style="margin: 0 0 var(--spacing-xs) 0; font-weight: 700; color: var(--color-primary);">
+            Dosage: {{ med.dosage }} &bull; {{ med.frequency }}
+          </p>
+        </div>
+
+        {% if current_member.can_edit or current_member.role.value == 'senior' %}
+        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+          <a href="/medications/{{ med.id }}/edit" class="button" style="background-color: var(--color-surface); border: 2px solid var(--color-primary); color: var(--color-primary);">
+            Edit Schedule
+          </a>
+          <form method="post" action="/medications/{{ med.id }}/deactivate" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" style="background-color: var(--color-surface); border: 2px solid var(--color-danger); color: var(--color-danger);" onclick="return confirm('Deactivate this medication schedule?');">
+              Deactivate
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+
+      <div style="margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border);">
+        <p style="margin: 0 0 var(--spacing-xs) 0;"><strong>Scheduled Wall-Clock Times:</strong></p>
+        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+          {% for t in med.scheduled_times %}
+          <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-weight: 700;">
+            {{ t }}
+          </span>
+          {% endfor %}
+        </div>
+        {% if med.instructions %}
+        <p style="margin: var(--spacing-sm) 0 0 0; color: var(--color-text-muted);">
+          <strong>Instructions:</strong> {{ med.instructions }}
+        </p>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="status-banner status-info" style="margin-top: var(--spacing-lg);">
+    <p>No active medications are currently scheduled.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

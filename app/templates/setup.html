@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Care Profile - CareKavach{% endblock %}
+
+{% block content %}
+<section aria-labelledby="setup-heading">
+  <h2 id="setup-heading">Care Profile Setup</h2>
+  <p>Initialize the care profile for the senior member. This configuration can only be executed once.</p>
+
+  {% if error %}
+  <div role="alert" class="status-banner status-error">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/setup" novalidate>
+    <div class="form-group">
+      <label for="setup_code">Setup Code <span aria-hidden="true">*</span></label>
+      <input
+        type="password"
+        id="setup_code"
+        name="setup_code"
+        required
+        autocomplete="off"
+        placeholder="Enter master setup authorization code"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="senior_name">Senior Full Name <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="senior_name"
+        name="senior_name"
+        required
+        maxlength="60"
+        value="{{ senior_name or '' }}"
+        placeholder="e.g. Ramesh Sharma"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="passcode">Senior Passcode <span aria-hidden="true">* (Minimum 6 characters)</span></label>
+      <input
+        type="password"
+        id="passcode"
+        name="passcode"
+        required
+        minlength="6"
+        autocomplete="new-password"
+        placeholder="Choose a secure 6+ character passcode"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="email">Senior Email (Optional for notifications)</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        value="{{ email or '' }}"
+        placeholder="senior@example.com"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="timezone">Profile Timezone <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="timezone"
+        name="timezone"
+        required
+        value="{{ default_timezone or 'Asia/Kolkata' }}"
+      >
+    </div>
+
+    <button type="submit" class="btn-primary btn-large">
+      Initialize Care Profile
+    </button>
+  </form>
+</section>
+{% endblock %}

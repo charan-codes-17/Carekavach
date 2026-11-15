@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CareKavach{% endblock %}
+
+{% block nav %}
+<span>Signed in as <strong>{{ current_member.name }}</strong> ({{ current_member.role|title }})</span>
+<a href="/members">Members</a>
+<form method="post" action="/logout" style="display: inline;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit" style="background: none; border: none; color: var(--color-primary); text-decoration: underline; font-weight: 700; cursor: pointer; padding: 0 var(--spacing-md); min-height: var(--touch-target-min);">
+    Sign Out
+  </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<section aria-labelledby="welcome-heading">
+  <h2 id="welcome-heading">Welcome, {{ current_member.name }}!</h2>
+  <div class="status-banner status-info">
+    <p>You are logged into the CareKavach ecosystem as: <strong>{{ current_member.role.value|upper }}</strong>.</p>
+    {% if current_member.can_edit %}
+    <p>You have <strong>editor privileges</strong> to update medications, log doses, and manage appointments.</p>
+    {% else %}
+    <p>You have <strong>read-only access</strong>.</p>
+    {% endif %}
+  </div>
+
+  <p>Select a section below to get started:</p>
+  <ul>
+    <li><a href="/doses/today"><strong>Today's Dose Schedule</strong></a> &mdash; View and log today's doses</li>
+    <li><a href="/medications"><strong>Medication Management</strong></a> &mdash; View, add, or edit daily medications</li>
+    <li><a href="/appointments"><strong>Doctor Appointments</strong></a> &mdash; Monitor upcoming medical visits</li>
+    <li><a href="/members"><strong>Care Team Members</strong></a> &mdash; View authorized family and caretakers</li>
+    {% if current_member.role.value in ['senior', 'caretaker'] %}
+    <li><a href="/audit"><strong>System Audit Trail</strong></a> &mdash; View chronological modification history</li>
+    {% endif %}
+  </ul>
+</section>
+{% endblock %}
