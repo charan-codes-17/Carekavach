@@ -1,0 +1,13 @@
+Hello {{ recipient_name }},
+
+This is a logistical reminder that {{ senior_name }} has a medical appointment scheduled {{ window_label }}.
+
+Doctor: Dr. {{ doctor_name }} ({{ specialty }})
+Date & Time: {{ appointment_date }} at {{ appointment_time }}
+Location: {{ location }}
+{% if notes %}Notes: {{ notes }}
+{% endif %}
+Please coordinate transport and arrival logistics in advance.
+
+---
+CareKavach Elder Care | Routine logistics reminder only | Does not provide medical advice.

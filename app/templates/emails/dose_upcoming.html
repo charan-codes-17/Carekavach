@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareKavach Reminder: Upcoming Scheduled Dose</title>
+</head>
+<body style="font-family: Arial, sans-serif; font-size: 18px; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f9fafb;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 8px; border: 1px solid #e5e7eb;">
+    <h2 style="color: #111827; margin-top: 0; font-size: 22px;">CareKavach Schedule Reminder</h2>
+    <p>Hello <strong>{{ recipient_name }}</strong>,</p>
+    <p>This is a logistical schedule reminder for <strong>{{ senior_name }}</strong>.</p>
+    <div style="background-color: #f3f4f6; padding: 16px; border-radius: 6px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0;"><strong>Medication:</strong> {{ medication_name }}</p>
+      <p style="margin: 0 0 8px 0;"><strong>Dosage:</strong> {{ dosage }}</p>
+      <p style="margin: 0 0 8px 0;"><strong>Scheduled Time:</strong> {{ scheduled_time }} ({{ scheduled_date }})</p>
+      {% if instructions %}
+      <p style="margin: 0;"><strong>Instructions:</strong> {{ instructions }}</p>
+      {% endif %}
+    </div>
+    <p style="font-size: 16px; color: #4b5563;">Please log the dose status in CareKavach once taken or skipped.</p>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+    <p style="font-size: 14px; color: #6b7280; margin-bottom: 0;">CareKavach Elder Care &bull; Routine logistics reminder only &bull; Does not provide medical advice.</p>
+  </div>
+</body>
+</html>

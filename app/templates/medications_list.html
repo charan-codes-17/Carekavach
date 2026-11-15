@@ -7,7 +7,7 @@
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md);">
     <h2 id="medications-heading" style="margin: 0;">Daily Medication Schedules</h2>
     {% if current_member.can_edit or current_member.role.value == 'senior' %}
-    <a href="/medications/new" class="btn-primary" style="display: inline-flex; align-items: center; min-height: var(--touch-target-min);">
+    <a href="/medications/new" class="button btn-primary" role="button">
       + Add Medication
     </a>
     {% endif %}

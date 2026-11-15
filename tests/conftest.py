@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator
 
 import pytest
@@ -7,6 +8,9 @@ from app.clock import FixedClock
 from app.config import Settings
 from app.main import app
 from app.repositories import MemoryRepository
+
+# Ensure default Settings() initialization during test discovery has an explicit valid secret
+os.environ.setdefault("SESSION_SECRET", "test-session-secret-at-least-32-chars")
 
 
 @pytest.fixture

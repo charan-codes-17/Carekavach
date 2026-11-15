@@ -1,5 +1,9 @@
+import uuid
+from datetime import UTC, datetime
+
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 
 from app.clock import FixedClock
 from app.config import get_settings
@@ -215,3 +219,72 @@ async def test_revocation_invalidates_existing_cookie_immediately(
     # Audit entries confirm actions were logged
     audits = await memory_repo.list_audit_entries("default_profile")
     assert any(a.action == "MEMBER_REVOKED" for a in audits)
+
+
+@pytest.mark.asyncio
+async def test_invite_member_rejects_colon_in_name(
+    async_client: AsyncClient,
+    fixed_clock: FixedClock,
+    setup_two_members: tuple[Member, Member],
+) -> None:
+    senior, _ = setup_two_members
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_token = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    response = await async_client.post(
+        "/members/invite",
+        data={
+            "name": "Invalid:Name",
+            "role": "family",
+            "passcode": "pass123",
+            "csrf_token": csrf_token,
+        },
+    )
+    assert response.status_code == 303
+    assert "Member+name+cannot+contain+colon" in response.headers["location"]
+
+
+@pytest.mark.asyncio
+async def test_invite_member_generates_uuid4_hex_id(
+    async_client: AsyncClient,
+    fixed_clock: FixedClock,
+    memory_repo: MemoryRepository,
+    setup_two_members: tuple[Member, Member],
+) -> None:
+    senior, _ = setup_two_members
+    settings = get_settings()
+
+    senior_cookie = create_session_cookie(senior.id, settings.SESSION_SECRET, fixed_clock)
+    async_client.cookies.set(SESSION_COOKIE_NAME, senior_cookie)
+    csrf_token = generate_csrf_token(senior_cookie, settings.SESSION_SECRET)
+
+    response = await async_client.post(
+        "/members/invite",
+        data={
+            "name": "Anita Sharma",
+            "role": "family",
+            "passcode": "pass123",
+            "csrf_token": csrf_token,
+        },
+    )
+    assert response.status_code == 303
+    member = await memory_repo.get_member_by_name("default_profile", "Anita Sharma")
+    assert member is not None
+    assert len(member.id) == 32
+    parsed_uuid = uuid.UUID(hex=member.id)
+    assert parsed_uuid.version == 4
+
+
+def test_member_model_rejects_colon_in_name() -> None:
+    with pytest.raises(ValidationError, match="Member name cannot contain ':'"):
+        Member(
+            name="Bad:Name",
+            role=MemberRole.FAMILY,
+            can_edit=False,
+            passcode_salt="salt",
+            passcode_hash="hash",
+            created_at=datetime.now(UTC),
+        )

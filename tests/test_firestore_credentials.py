@@ -1,8 +1,12 @@
 import json
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from google.cloud.exceptions import Conflict
 
+from app.models import ReminderNotification
+from app.repositories import AlreadyExistsError
 from app.repositories.firestore import FirestoreRepository
 
 
@@ -92,3 +96,54 @@ def test_firestore_service_account_construction_failure_hides_secret() -> None:
         error_message = str(exc_info.value)
         assert "Failed to construct credentials from FIREBASE_CREDENTIALS_JSON" in error_message
         assert super_secret not in error_message
+
+
+@pytest.mark.asyncio
+async def test_firestore_create_reminder_notification_success() -> None:
+    """Firestore create_reminder_notification creates document atomically."""
+    mock_client = MagicMock()
+    mock_doc = MagicMock()
+    mock_doc.create = AsyncMock(return_value=None)
+    doc_chain = mock_client.collection.return_value.document.return_value
+    doc_chain.collection.return_value.document.return_value = mock_doc
+
+    repo = FirestoreRepository(project_id="test-proj")
+    repo._client = mock_client
+
+    notif = ReminderNotification(
+        id="upcoming_med1_2026-11-15_08:00_mem1",
+        profile_id="default_profile",
+        task_type="upcoming_dose",
+        target_id="med1",
+        sent_to=["care@example.com"],
+        sent_at=datetime.now(UTC),
+    )
+    result = await repo.create_reminder_notification(notif)
+    assert result.id == "upcoming_med1_2026-11-15_08:00_mem1"
+    mock_doc.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_firestore_create_reminder_notification_conflict_raises_already_exists() -> None:
+    """Firestore Conflict exception translates to AlreadyExistsError."""
+    mock_client = MagicMock()
+    mock_doc = MagicMock()
+    mock_doc.create = AsyncMock(side_effect=Conflict("Document already exists"))
+    doc_chain = mock_client.collection.return_value.document.return_value
+    doc_chain.collection.return_value.document.return_value = mock_doc
+
+    repo = FirestoreRepository(project_id="test-proj")
+    repo._client = mock_client
+
+    notif = ReminderNotification(
+        id="upcoming_med1_2026-11-15_08:00_mem1",
+        profile_id="default_profile",
+        task_type="upcoming_dose",
+        target_id="med1",
+        sent_to=["care@example.com"],
+        sent_at=datetime.now(UTC),
+    )
+    with pytest.raises(AlreadyExistsError) as exc_info:
+        await repo.create_reminder_notification(notif)
+
+    assert "already dispatched" in str(exc_info.value)

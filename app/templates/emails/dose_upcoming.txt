@@ -1,0 +1,13 @@
+Hello {{ recipient_name }},
+
+This is a logistical schedule reminder for {{ senior_name }}.
+
+Medication: {{ medication_name }}
+Dosage: {{ dosage }}
+Scheduled Time: {{ scheduled_time }} ({{ scheduled_date }})
+{% if instructions %}Instructions: {{ instructions }}
+{% endif %}
+Please log the dose status in CareKavach once taken or skipped.
+
+---
+CareKavach Elder Care | Routine logistics reminder only | Does not provide medical advice.

@@ -184,6 +184,7 @@ def derived_misses(
                             "slot_id": slot_id,
                             "medication_id": med.id,
                             "medication_name": med.name,
+                            "dosage": med.dosage,
                             "is_private": med.is_private,
                             "scheduled_date": date_str,
                             "scheduled_time": t_str,

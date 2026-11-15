@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -96,12 +98,14 @@ async def test_setup_success_and_subsequent_disabled(
     assert profile is not None
     assert profile.senior_name == "Ramesh Sharma"
 
-    # Senior member created with can_edit=True
+    # Senior member created with can_edit=True and uuid4 hex ID
     senior = await memory_repo.get_member_by_name("default_profile", "Ramesh Sharma")
     assert senior is not None
     assert senior.role.value == "senior"
     assert senior.can_edit is True
     assert senior.email == "senior@example.com"
+    assert len(senior.id) == 32
+    assert uuid.UUID(hex=senior.id).version == 4
 
     # Audit entry written
     audit_entries = await memory_repo.list_audit_entries("default_profile")
@@ -121,3 +125,23 @@ async def test_setup_success_and_subsequent_disabled(
         },
     )
     assert second_post.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_setup_rejects_colon_in_senior_name(
+    async_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_settings(), "SETUP_CODE", "master-secret-123")
+
+    response = await async_client.post(
+        "/setup",
+        data={
+            "setup_code": "master-secret-123",
+            "senior_name": "Ramesh:Sharma",
+            "passcode": "pass123",
+            "timezone": "Asia/Kolkata",
+        },
+    )
+    assert response.status_code == 400
+    assert "Senior name cannot contain" in response.text

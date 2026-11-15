@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -88,7 +89,9 @@ async def process_setup(
         )
 
     # Constant-time comparison of setup code
-    if not secrets.compare_digest(setup_code.strip(), settings.SETUP_CODE.strip()):
+    if not secrets.compare_digest(
+        setup_code.strip().encode("utf-8"), settings.SETUP_CODE.strip().encode("utf-8")
+    ):
         limiter.record_failure(client_ip, "setup")
         return templates.TemplateResponse(
             request=request,
@@ -112,6 +115,20 @@ async def process_setup(
             context={
                 "request": request,
                 "error": "Senior name must be between 1 and 60 characters.",
+                "senior_name": senior_name,
+                "email": email,
+                "default_timezone": timezone_str,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if ":" in senior_name:
+        return templates.TemplateResponse(
+            request=request,
+            name="setup.html",
+            context={
+                "request": request,
+                "error": "Senior name cannot contain ':'.",
                 "senior_name": senior_name,
                 "email": email,
                 "default_timezone": timezone_str,
@@ -179,7 +196,7 @@ async def process_setup(
 
     # Create Senior member
     salt, p_hash = hash_passcode(passcode)
-    member_id = secrets.token_hex(8)
+    member_id = uuid.uuid4().hex
     senior_member = Member(
         id=member_id,
         profile_id="default_profile",

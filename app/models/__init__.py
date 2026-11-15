@@ -1,8 +1,9 @@
+import uuid
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class MemberRole(StrEnum):
@@ -24,7 +25,7 @@ class Profile(BaseModel):
 
 
 class Member(BaseModel):
-    id: str
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     profile_id: str = "default_profile"
     name: str
     email: str | None = None
@@ -34,6 +35,13 @@ class Member(BaseModel):
     passcode_hash: str
     is_active: bool = True
     created_at: datetime
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_no_colon(cls, v: str) -> str:
+        if ":" in v:
+            raise ValueError("Member name cannot contain ':'")
+        return v
 
 
 class Medication(BaseModel):

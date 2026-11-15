@@ -77,3 +77,27 @@ def test_csrf_token_generation_and_verification() -> None:
     assert verify_csrf_token(session_str, "tampered-token", secret) is False
     assert verify_csrf_token("different-session", token, secret) is False
     assert verify_csrf_token("", token, secret) is False
+
+
+def test_decode_session_cookie_non_ascii_safely_rejected() -> None:
+    clock = FixedClock()
+    secret = "test-secret-key-at-least-32-chars-long"
+
+    # Non-ASCII cookie content / signature should return None, not raise TypeError
+    assert decode_session_cookie("mem_123:1700000000:🔥signature", secret, clock) is None
+    assert decode_session_cookie("mem_123:1700000000:こんにちは", secret, clock) is None
+    assert decode_session_cookie("🔥invalid_cookie_string", secret, clock) is None
+
+
+def test_verify_csrf_token_non_ascii_safely_rejected() -> None:
+    session_str = "mem_123:1700000000:abcde"
+    secret = "session-secret-key-at-least-32-chars-long"
+
+    assert verify_csrf_token(session_str, "🔥non_ascii_csrf_token", secret) is False
+    assert verify_csrf_token("🔥non_ascii_session", "valid_looking_token", secret) is False
+
+
+def test_verify_passcode_non_ascii_safely_handled() -> None:
+    salt, p_hash = hash_passcode("secret123")
+    assert verify_passcode("wrong_passcode_🔑", salt, p_hash) is False
+    assert verify_passcode("secret123", salt, "invalid_hash_🔥") is False

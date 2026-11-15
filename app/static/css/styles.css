@@ -139,7 +139,7 @@ body {
 }
 
 /* Interactive Elements (Buttons & Inputs >= 48px) */
-button, .button, input[type="submit"] {
+button, .button, .btn, .btn-primary, input[type="submit"] {
   min-height: var(--touch-target-min);
   min-width: var(--touch-target-min);
   padding: var(--spacing-sm) var(--spacing-lg);
@@ -155,13 +155,24 @@ button, .button, input[type="submit"] {
   text-decoration: none;
 }
 
-.btn-primary {
+.btn-primary, .button-primary {
   background-color: var(--color-primary);
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
-.btn-primary:hover {
+.btn-primary:hover, .button-primary:hover {
   background-color: var(--color-primary-hover);
+  color: #ffffff !important;
+}
+
+.btn-primary:focus,
+.btn-primary:focus-visible,
+.button:focus,
+.button:focus-visible,
+button:focus,
+button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .btn-large {

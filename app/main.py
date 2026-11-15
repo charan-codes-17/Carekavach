@@ -23,6 +23,7 @@ from app.routes.doses import router as doses_router
 from app.routes.medications import router as medications_router
 from app.routes.members import router as members_router
 from app.routes.setup import router as setup_router
+from app.routes.tasks import router as tasks_router
 from app.services.auth import generate_csrf_token
 
 
@@ -60,6 +61,7 @@ app.include_router(medications_router)
 app.include_router(doses_router)
 app.include_router(appointments_router)
 app.include_router(audit_router)
+app.include_router(tasks_router)
 
 
 @app.get("/health", response_class=JSONResponse)

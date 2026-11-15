@@ -162,3 +162,39 @@ async def test_logout_with_csrf_and_missing_csrf_rejected(
     res_logout = await async_client.post("/logout", data={"csrf_token": csrf_token})
     assert res_logout.status_code == 303
     assert res_logout.headers["location"] == "/login"
+
+
+@pytest.mark.asyncio
+async def test_non_ascii_session_cookie_redirects_to_login_not_500(
+    async_client: AsyncClient,
+) -> None:
+    # A non-ASCII cookie should be safely rejected as invalid, cleanly redirecting to /login
+    response = await async_client.get(
+        "/",
+        headers=[(b"cookie", b"carekavach_session=mem_1:1700000000:\xe9signature")],
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
+@pytest.mark.asyncio
+async def test_non_ascii_csrf_token_returns_403_not_500(
+    async_client: AsyncClient,
+    fixed_clock: FixedClock,
+    setup_test_member: Member,
+) -> None:
+    settings = get_settings()
+    session_cookie = create_session_cookie(
+        setup_test_member.id,
+        settings.SESSION_SECRET,
+        fixed_clock,
+    )
+    async_client.cookies.set(SESSION_COOKIE_NAME, session_cookie)
+
+    # Submitting a non-ASCII CSRF token should return 403 Forbidden cleanly, never 500
+    response = await async_client.post(
+        "/logout",
+        data={"csrf_token": "🔥invalid-non-ascii-token"},
+    )
+    assert response.status_code == 403
+    assert "Invalid or missing CSRF token" in response.text

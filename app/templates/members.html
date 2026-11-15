@@ -2,17 +2,6 @@
 
 {% block title %}Manage Members - CareKavach{% endblock %}
 
-{% block nav %}
-<span>Signed in as <strong>{{ current_member.name }}</strong> ({{ current_member.role|title }})</span>
-<a href="/">Dashboard</a>
-<form method="post" action="/logout" style="display: inline;">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <button type="submit" style="background: none; border: none; color: var(--color-primary); text-decoration: underline; font-weight: 700; cursor: pointer; padding: 0 var(--spacing-md); min-height: var(--touch-target-min);">
-    Sign Out
-  </button>
-</form>
-{% endblock %}
-
 {% block content %}
 <section aria-labelledby="members-heading">
   <h2 id="members-heading">Authorized Care Ecosystem Members</h2>

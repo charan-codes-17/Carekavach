@@ -1,4 +1,4 @@
-import secrets
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
@@ -79,6 +79,12 @@ async def invite_member(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
+    if ":" in clean_name:
+        return RedirectResponse(
+            url="/members?error=Member+name+cannot+contain+colon",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
     clean_role = role_str.strip().lower()
     if clean_role not in (MemberRole.CARETAKER.value, MemberRole.FAMILY.value):
         return RedirectResponse(
@@ -109,7 +115,7 @@ async def invite_member(
 
     salt, p_hash = hash_passcode(passcode)
     new_member = Member(
-        id=secrets.token_hex(8),
+        id=uuid.uuid4().hex,
         profile_id="default_profile",
         name=clean_name,
         email=clean_email,

@@ -40,7 +40,7 @@ def verify_passcode(passcode: str, salt: str, expected_hash: str) -> bool:
         salt.encode("utf-8"),
         PBKDF2_ITERATIONS,
     ).hex()
-    return secrets.compare_digest(computed_hash, expected_hash)
+    return secrets.compare_digest(computed_hash.encode("utf-8"), expected_hash.encode("utf-8"))
 
 
 def verify_dummy_passcode(passcode: str) -> bool:
@@ -88,7 +88,7 @@ def decode_session_cookie(
         hashlib.sha256,
     ).hexdigest()
 
-    if not secrets.compare_digest(signature, expected_sig):
+    if not secrets.compare_digest(signature.encode("utf-8"), expected_sig.encode("utf-8")):
         return None
 
     try:
@@ -117,4 +117,4 @@ def verify_csrf_token(session_str: str, submitted_token: str, session_secret: st
     if not session_str or not submitted_token:
         return False
     expected = generate_csrf_token(session_str, session_secret)
-    return secrets.compare_digest(submitted_token, expected)
+    return secrets.compare_digest(submitted_token.encode("utf-8"), expected.encode("utf-8"))

@@ -1,0 +1,18 @@
+Hello {{ recipient_name }},
+
+This is an automated schedule escalation notice regarding {{ senior_name }}'s scheduled medication routine.
+
+Notice: {{ reason }}
+{% if summary %}
+Pattern Summary: {{ summary }}
+{% endif %}
+
+Missed Scheduled Slots:
+{% for item in missed_items %}
+- {{ item.medication_name }}{% if item.dosage %} ({{ item.dosage }}){% endif %} - Due at {{ item.scheduled_time }} on {{ item.scheduled_date }}
+{% endfor %}
+
+Please check in with {{ senior_name }} regarding their schedule routine.
+
+---
+CareKavach Elder Care | Routine logistics reminder only | Does not provide medical advice.
