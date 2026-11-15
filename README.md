@@ -171,7 +171,7 @@ CareKavach uses **only** the following Google Cloud services. Nothing else shoul
 
 ```powershell
 # 1. Clone and enter the project
-git clone <your-repository-url> CareKavach
+git clone https://github.com/charan-codes-17/Carekavach.git CareKavach
 cd CareKavach
 
 # 2. Create and activate a virtual environment
