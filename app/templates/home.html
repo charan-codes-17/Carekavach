@@ -3,10 +3,10 @@
 {% block title %}Dashboard - CareKavach{% endblock %}
 
 {% block content %}
-<section aria-labelledby="welcome-heading">
-  <h2 id="welcome-heading">Welcome, {{ current_member.name }}!</h2>
+<section aria-labelledby="dashboard-heading">
+  <h2 id="dashboard-heading">Welcome, {{ current_member.name }}</h2>
   <div class="status-banner status-info">
-    <p>You are logged into the CareKavach ecosystem as: <strong>{{ current_member.role.value|upper }}</strong>.</p>
+    <p>You are logged into the CareKavach ecosystem as <strong>{{ current_member.role.value|upper }}</strong>.</p>
     {% if current_member.can_edit %}
     <p>You have <strong>editor privileges</strong> to update medications, log doses, and manage appointments.</p>
     {% else %}
@@ -14,15 +14,84 @@
     {% endif %}
   </div>
 
-  <p>Select a section below to get started:</p>
-  <ul>
-    <li><a href="/doses/today"><strong>Today's Dose Schedule</strong></a> &mdash; View and log today's doses</li>
-    <li><a href="/medications"><strong>Medication Management</strong></a> &mdash; View, add, or edit daily medications</li>
-    <li><a href="/appointments"><strong>Doctor Appointments</strong></a> &mdash; Monitor upcoming medical visits</li>
-    <li><a href="/members"><strong>Care Team Members</strong></a> &mdash; View authorized family and caretakers</li>
-    {% if current_member.role.value in ['senior', 'caretaker'] %}
-    <li><a href="/audit"><strong>System Audit Trail</strong></a> &mdash; View chronological modification history</li>
+  {% if current_member.role.value == 'family' %}
+  <section aria-labelledby="adherence-heading" style="margin-top: var(--spacing-xl);">
+    <h3 id="adherence-heading">Today's Adherence ({{ today_date }})</h3>
+    <ul>
+      <li>Doses taken: <strong>{{ adherence.taken }}</strong></li>
+      <li>Doses skipped: <strong>{{ adherence.skipped }}</strong></li>
+      <li>Doses missed: <strong>{{ adherence.missed }}</strong></li>
+      <li>Doses still pending: <strong>{{ adherence.pending }}</strong></li>
+    </ul>
+    <p>Only summary counts are shown here. Private medication details stay private to the senior and caretakers.</p>
+  </section>
+
+  <section aria-labelledby="appointments-heading" style="margin-top: var(--spacing-xl);">
+    <h3 id="appointments-heading">Upcoming Doctor Appointments</h3>
+    {% if appointments %}
+    <ul>
+      {% for appt in appointments %}
+      <li>
+        <strong>{{ appt.doctor_name }}</strong> ({{ appt.specialty }}) &mdash;
+        {{ appt.formatted_datetime }} at {{ appt.location }}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No upcoming doctor appointments are scheduled.</p>
     {% endif %}
-  </ul>
+  </section>
+  {% else %}
+  {% if next_dose %}
+  <article class="hero-card" aria-labelledby="next-dose-heading">
+    <h3 id="next-dose-heading">Next Dose</h3>
+    <p class="dose-meta">{{ next_dose.medication_name }}</p>
+    <p class="dose-meta">Time: {{ next_dose.scheduled_time }} &bull; Dosage: {{ next_dose.dosage }}
+      {% if next_dose.is_private %}<span class="badge-private">[Private]</span>{% endif %}
+    </p>
+    <p>Record this scheduled dose to keep the care team informed.</p>
+    <div class="dose-actions">
+      <form method="post" action="/doses/log">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="medication_id" value="{{ next_dose.medication_id }}">
+        <input type="hidden" name="slot_date" value="{{ today_date }}">
+        <input type="hidden" name="slot_time" value="{{ next_dose.scheduled_time }}">
+        <input type="hidden" name="status" value="TAKEN">
+        <button type="submit" class="btn-hero btn-taken">Mark as Taken</button>
+      </form>
+      <form method="post" action="/doses/log">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="medication_id" value="{{ next_dose.medication_id }}">
+        <input type="hidden" name="slot_date" value="{{ today_date }}">
+        <input type="hidden" name="slot_time" value="{{ next_dose.scheduled_time }}">
+        <input type="hidden" name="status" value="SKIPPED">
+        <button type="submit" class="btn-hero btn-skip">Skip Dose</button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+  <div class="status-banner status-info" style="margin-top: var(--spacing-xl);">
+    <p>Nothing is due right now. You are all caught up for today.</p>
+  </div>
+  {% endif %}
+
+  <section aria-labelledby="today-slots-heading" style="margin-top: var(--spacing-xl);">
+    <h3 id="today-slots-heading">Today's Doses ({{ today_date }})</h3>
+    {% if slots %}
+    <ul class="slot-list">
+      {% for s in slots %}
+      <li>
+        <strong>{{ s.scheduled_time }}</strong> &mdash; {{ s.medication_name }} ({{ s.dosage }})
+        {% if s.is_private %}<span class="badge-private">[Private]</span>{% endif %}
+        <br>
+        <span>Status: {{ s.status_text }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No medication doses are scheduled for today.</p>
+    {% endif %}
+  </section>
+  {% endif %}
 </section>
 {% endblock %}

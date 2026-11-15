@@ -230,3 +230,76 @@ label {
   border-color: var(--color-success);
   color: var(--color-success);
 }
+
+/* Next-Dose Hero Card (Senior & Caretaker dashboard) */
+.hero-card {
+  background-color: var(--color-surface);
+  border: 3px solid var(--color-primary);
+  border-radius: 10px;
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.hero-card .dose-meta {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: var(--spacing-xs) 0;
+}
+
+.dose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.btn-hero {
+  min-height: 56px;
+  min-width: 180px;
+  font-size: 1.25rem;
+  padding: var(--spacing-md) var(--spacing-xl);
+}
+
+.btn-taken {
+  background-color: var(--color-success);
+  color: #ffffff !important;
+}
+
+.btn-taken:hover {
+  background-color: #052e16;
+}
+
+.btn-skip {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-skip:hover {
+  background-color: var(--color-bg);
+}
+
+.badge-private {
+  font-size: 0.875rem;
+  background-color: #fee2e2;
+  color: #991b1b;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  border: 1px solid #f87171;
+  margin-left: 8px;
+}
+
+.slot-list {
+  display: grid;
+  gap: var(--spacing-md);
+  list-style: none;
+  padding: 0;
+}
+
+.slot-list > li {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+}
